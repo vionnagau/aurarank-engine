@@ -44,9 +44,13 @@ async def execute_ranking(query_token_id: int = Query(..., description="the pars
     # formats the similarity matrix into structured python dictionaries
     results = []
     for i, score in enumerate(similarities.tolist()):
+        # Map range [-1, 1] to [0, 1]
+        # Adding 1 makes the range [0, 2], dividing by 2 makes it [0, 1]
+        normalized_score = (score + 1) / 2
+        
         results.append({
             "candidate": catalog_names[catalog_ids[i].item()],
-            "relevance": round(score, 4)
+            "relevance": round(normalized_score, 4)
         })
         
     # sorts the final payload by descending relevance metric (highest score first)
