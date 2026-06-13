@@ -1,3 +1,6 @@
+import json
+from agent import generate_agentic_justification
+
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import torch
@@ -45,7 +48,6 @@ async def execute_ranking(query_token_id: int = Query(..., description="the pars
     results = []
     for i, score in enumerate(similarities.tolist()):
         # Map range [-1, 1] to [0, 1]
-        # Adding 1 makes the range [0, 2], dividing by 2 makes it [0, 1]
         normalized_score = (score + 1) / 2
         
         results.append({
@@ -56,8 +58,23 @@ async def execute_ranking(query_token_id: int = Query(..., description="the pars
     # sorts the final payload by descending relevance metric (highest score first)
     results.sort(key=lambda x: x["relevance"], reverse=True)
     
+    # --- AGENTIC INTERCEPTION ---
+    # isolate the #1 ranked candidate from the deep learning model
+    top_candidate = results[0]
+    
+    # pass the deep learning result to the LLM agent for justification
+    justification_string = generate_agentic_justification(
+        query=str(query_token_id), 
+        retrieved_candidate=top_candidate["candidate"], 
+        vector_score=top_candidate["relevance"]
+    )
+    
+    # parse the strict JSON string returned by Gemini into a Python dictionary
+    agentic_reasoning = json.loads(justification_string)
+    
     # serves the clean json payload back to the requesting client interface
     return {
         "status": "success",
-        "ranked_results": results
+        "ranked_results": results,
+        "agentic_reasoning": agentic_reasoning
     }

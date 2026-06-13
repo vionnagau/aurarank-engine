@@ -52,32 +52,19 @@ export default function Home() {
     }
   };
 
-  // Real-time Vector Space Transformation Engine
-  const processedResults = useMemo(() => {
-    if (rawResults.length === 0) return [];
+  // Animation configuration for staggered list entries
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+    }
+  };
 
-    let transformed = rawResults.map((item) => {
-      let score = item.relevance;
-
-      // 1. Simulate Sparse BM25 structural intersections if Hybrid is enabled
-      if (strategy === "sparse-hybrid") {
-        // Deterministic lexical boost based on token properties to mimic sparse indexing
-        const lexicalWeights: Record<string, number> = { tech: 0.12, finance: 0.08, animals: 0.05, entertainment: 0.02 };
-        score = score + (lexicalWeights[item.candidate.toLowerCase()] || 0.03);
-      }
-
-      // 2. Convert Similarity Scores to Geometric Distance Spaces if Euclidean is enabled
-      if (metric === "euclidean") {
-        // Standard geometric conversion: L2 Distance = sqrt(2 * (1 - CosineSimilarity))
-        score = Math.sqrt(2 * (1 - Math.max(0, Math.min(1, score))));
-      }
-
-      return { ...item, relevance: score };
-    });
-
-    // Sort appropriately: Euclidean distances are ascending (lower distance = closer alignment)
-    return transformed.sort((a, b) => metric === "euclidean" ? a.relevance - b.relevance : b.relevance - a.relevance);
-  }, [rawResults, metric, strategy]);
+  const itemVariants: any = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0 }
+  };
 
   return (
     <main className="min-h-screen bg-[#070708] text-neutral-200 p-4 md:p-8 relative overflow-hidden selection:bg-white selection:text-black">
