@@ -60,14 +60,9 @@ export default function Home() {
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15, scale: 0.98 },
-    show: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { type: "spring", stiffness: 100, damping: 15 }
-    }
+  const itemVariants: any = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0 }
   };
 
   return (
