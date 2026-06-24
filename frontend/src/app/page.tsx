@@ -1,145 +1,80 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 
 export default function Home() {
   const [query, setQuery] = useState('');
-  const [timeWeight, setTimeWeight] = useState(0.5); // The Temporal Decay Lambda
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // The Framer Motion fix you successfully merged in Milestone 6
-  const itemVariants: any = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0 }
-  };
-
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query) return;
+    if (!query.trim()) return;
 
     setLoading(true);
     try {
-      // Pinging your FastAPI backend with the query AND the temporal weight
-      const response = await fetch('http://localhost:8000/api/search', {
+      // Clean, direct endpoint match
+      const response = await fetch('http://localhost:8000/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query, time_weight: timeWeight }),
+        body: JSON.stringify({ query: query }),
       });
 
       const data = await response.json();
-      setResults(data.results || []);
+      setResults(data.results || data || []);
     } catch (error) {
-      console.error("Failed to fetch results:", error);
+      console.error("Connection error:", error);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white p-8 font-sans selection:bg-purple-500/30">
-      <div className="max-w-4xl mx-auto space-y-12">
+    <main className="min-h-screen bg-black text-white font-mono p-8 antialiased">
+      <div className="max-w-3xl mx-auto space-y-12">
 
-        {/* Header Section */}
-        <div className="space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent">
-            AuraRank Engine
-          </h1>
-          <p className="text-neutral-400">Deep Learning Retrieval & Agentic Interrogation</p>
+        {/* Minimalist Terminal Header */}
+        <div className="border-b border-neutral-800 pb-6">
+          <h1 className="text-xl font-bold tracking-widest text-neutral-100">AURARANK_ENGINE //</h1>
+          <p className="text-xs text-neutral-500 mt-1">SYSTEM STATUS: ACTIVE // NEURAL RETRIEVAL PIPELINE</p>
         </div>
 
-        {/* Control Panel (Glassmorphic) */}
-        <form onSubmit={handleSearch} className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-6">
-
-          {/* Search Input */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-300">Semantic Query</label>
+        {/* High-Tech Minimal Input */}
+        <form onSubmit={handleSearch} className="space-y-4">
+          <div className="relative border border-neutral-800 focus-within:border-neutral-400 transition-colors bg-neutral-950 px-4 py-3 rounded">
+            <span className="text-neutral-600 mr-2">&gt;</span>
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g., machine learning tutorials..."
-              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+              placeholder="ENTER SEMANTIC QUERY..."
+              className="bg-transparent text-white outline-none w-11/12 uppercase tracking-wider text-sm font-mono"
             />
           </div>
-
-          {/* Temporal Decay Slider */}
-          <div className="space-y-3 pt-2">
-            <div className="flex justify-between text-sm">
-              <label className="font-medium text-neutral-300">Temporal Decay ($\lambda$)</label>
-              <span className="text-purple-400 font-mono bg-purple-500/10 px-2 py-0.5 rounded">
-                {timeWeight.toFixed(2)}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={timeWeight}
-              onChange={(e) => setTimeWeight(parseFloat(e.target.value))}
-              className="w-full accent-purple-500"
-            />
-            <div className="flex justify-between text-xs text-neutral-500 font-medium">
-              <span>Pure Semantic Relevance</span>
-              <span>Heavy Recency Bias</span>
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-neutral-200 transition-colors disabled:opacity-50"
+            className="w-full border border-neutral-800 hover:border-white hover:bg-white hover:text-black transition-all text-xs uppercase tracking-widest py-3 font-bold disabled:opacity-30"
           >
-            {loading ? 'Running Neural Pipeline...' : 'Execute Neural Search'}
+            {loading ? 'EXECUTING SEARCH...' : 'RUN PIPELINE'}
           </button>
         </form>
 
-        {/* Results Section */}
-        <motion.div
-          className="space-y-4"
-          initial="hidden"
-          animate="show"
-          variants={{ show: { transition: { staggerChildren: 0.1 } } }}
-        >
+        {/* Streamlined Results Output */}
+        <div className="space-y-6">
           {results.map((result, idx) => (
-            <motion.div
-              key={idx}
-              variants={itemVariants}
-              className="p-6 rounded-2xl bg-neutral-900 border border-white/5 space-y-4 hover:border-purple-500/30 transition-all"
-            >
-              <div className="flex justify-between items-start">
-                <h3 className="text-lg font-semibold">{result.title}</h3>
-
-                {/* Telemetry Badges */}
-                <div className="flex gap-2">
-                  <span className="text-xs font-mono bg-blue-500/10 text-blue-400 px-2 py-1 rounded border border-blue-500/20">
-                    Conf: {(result.confidence_score * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-xs font-mono bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20">
-                    {result.latency_ms}ms
-                  </span>
-                </div>
+            <div key={idx} className="border border-neutral-900 bg-neutral-950 p-6 rounded space-y-3">
+              <div className="flex justify-between items-baseline border-b border-neutral-900 pb-2">
+                <h3 className="text-sm font-bold tracking-wide text-neutral-200 uppercase">{result.title}</h3>
+                <span className="text-[10px] text-neutral-500 font-mono">
+                  SCORE: {result.confidence_score ? (result.confidence_score * 100).toFixed(1) : '100'}%
+                </span>
               </div>
-
-              <p className="text-sm text-neutral-400">{result.description}</p>
-
-              {/* Agentic Reasoning Block */}
-              {result.agentic_reasoning && (
-                <div className="mt-4 p-4 rounded-xl bg-purple-900/10 border border-purple-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                    <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Gemini Interrogation</span>
-                  </div>
-                  <p className="text-sm text-neutral-300 leading-relaxed">
-                    {result.agentic_reasoning}
-                  </p>
-                </div>
-              )}
-            </motion.div>
+              <p className="text-xs text-neutral-400 leading-relaxed uppercase">{result.description}</p>
+            </div>
           ))}
-        </motion.div>
+        </div>
+
       </div>
     </main>
   );
