@@ -1,224 +1,145 @@
-"use client";
+'use client';
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, AlertCircle, BarChart3, Sliders, Cpu, Activity, Layers } from "lucide-react";
-import { useState, useMemo } from "react";
-
-interface RankedResult {
-  candidate: string;
-  relevance: number;
-}
-
-interface ApiResponse {
-  status: string;
-  ranked_results: RankedResult[];
-}
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 
 export default function Home() {
-  const [queryId, setQueryId] = useState<string>("");
-  const [rawResults, setRawResults] = useState<RankedResult[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [timeWeight, setTimeWeight] = useState(0.5); // The Temporal Decay Lambda
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Active Hyperparameter States
-  const [metric, setMetric] = useState<string>("cosine");
-  const [strategy, setStrategy] = useState<string>("dense");
-  const [latency, setLatency] = useState<string>("0.00ms");
-
-  const executeRanking = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!queryId.trim()) return;
-
-    setIsLoading(true);
-    setError(null);
-    const startTime = performance.now();
-
-    try {
-      const response = await fetch(`http://localhost:8000/rank?query_token_id=${queryId}`);
-      if (!response.ok) throw new Error(`Engine status: ${response.status}`);
-
-      const data: ApiResponse = await response.json();
-      if (data.status === "success") {
-        setRawResults(data.ranked_results);
-        setLatency(`${(performance.now() - startTime).toFixed(2)}ms`);
-      } else {
-        throw new Error("API transaction aborted.");
-      }
-    } catch (err: any) {
-      setError(err.message || "Engine offline.");
-      setRawResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Animation configuration for staggered list entries
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08, delayChildren: 0.1 }
-    }
-  };
-
+  // The Framer Motion fix you successfully merged in Milestone 6
   const itemVariants: any = {
     hidden: { opacity: 0, y: 15 },
     show: { opacity: 1, y: 0 }
   };
 
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query) return;
+
+    setLoading(true);
+    try {
+      // Pinging your FastAPI backend with the query AND the temporal weight
+      const response = await fetch('http://localhost:8000/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query, time_weight: timeWeight }),
+      });
+
+      const data = await response.json();
+      setResults(data.results || []);
+    } catch (error) {
+      console.error("Failed to fetch results:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-[#070708] text-neutral-200 p-4 md:p-8 relative overflow-hidden selection:bg-white selection:text-black">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-white/[0.03] to-transparent blur-3xl pointer-events-none" />
+    <main className="min-h-screen bg-neutral-950 text-white p-8 font-sans selection:bg-purple-500/30">
+      <div className="max-w-4xl mx-auto space-y-12">
 
-      {/* Global Header */}
-      <header className="max-w-7xl mx-auto w-full flex justify-between items-center mb-8 border-b border-white/5 pb-4 z-10 relative">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center text-black font-black text-sm tracking-tighter">Ω</div>
-          <div>
-            <h1 className="text-xl font-medium tracking-tight">Aura<span className="text-neutral-400">Rank</span></h1>
-            <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-mono">v1.0.4-production</p>
-          </div>
+        {/* Header Section */}
+        <div className="space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent">
+            AuraRank Engine
+          </h1>
+          <p className="text-neutral-400">Deep Learning Retrieval & Agentic Interrogation</p>
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono bg-neutral-900/50 border border-white/5 px-3 py-1.5 rounded-full text-neutral-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> ENGINE_ONLINE
-        </div>
-      </header>
 
-      {/* Main Dashboard Layout Grid */}
-      <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-4 gap-6 items-start z-10 relative">
+        {/* Control Panel (Glassmorphic) */}
+        <form onSubmit={handleSearch} className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-6">
 
-        {/* Column 1: Hyperparameter Control Panel */}
-        <div className="backdrop-blur-xl bg-neutral-900/20 border border-white/5 rounded-2xl p-5 space-y-6">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 font-mono">
-            <Sliders className="w-4 h-4 text-neutral-500" /> System Hyperparameters
-          </div>
-
+          {/* Search Input */}
           <div className="space-y-2">
-            <label className="text-xs text-neutral-500 font-mono">Vector Space Metric</label>
-            <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-1 rounded-xl border border-white/5">
-              {["cosine", "euclidean"].map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMetric(m)}
-                  className={`text-xs font-mono py-1.5 capitalize rounded-lg transition-all ${metric === m ? "bg-white text-black font-medium" : "text-neutral-400 hover:text-white"}`}
-                >
-                  {m}
-                </button>
-              ))}
+            <label className="text-sm font-medium text-neutral-300">Semantic Query</label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="e.g., machine learning tutorials..."
+              className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+            />
+          </div>
+
+          {/* Temporal Decay Slider */}
+          <div className="space-y-3 pt-2">
+            <div className="flex justify-between text-sm">
+              <label className="font-medium text-neutral-300">Temporal Decay ($\lambda$)</label>
+              <span className="text-purple-400 font-mono bg-purple-500/10 px-2 py-0.5 rounded">
+                {timeWeight.toFixed(2)}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={timeWeight}
+              onChange={(e) => setTimeWeight(parseFloat(e.target.value))}
+              className="w-full accent-purple-500"
+            />
+            <div className="flex justify-between text-xs text-neutral-500 font-medium">
+              <span>Pure Semantic Relevance</span>
+              <span>Heavy Recency Bias</span>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs text-neutral-500 font-mono">Search Strategy</label>
-            <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-1 rounded-xl border border-white/5">
-              {["dense", "sparse-hybrid"].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStrategy(s)}
-                  className={`text-xs font-mono py-1.5 capitalize rounded-lg transition-all ${strategy === s ? "bg-white text-black font-medium" : "text-neutral-400 hover:text-white"}`}
-                >
-                  {s.replace("-", " ")}
-                </button>
-              ))}
-            </div>
-          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-neutral-200 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Running Neural Pipeline...' : 'Execute Neural Search'}
+          </button>
+        </form>
 
-          <div className="pt-2 border-t border-white/5 space-y-2 text-[11px] font-mono text-neutral-500">
-            <div className="flex justify-between"><span>Vector Dim:</span><span className="text-neutral-300">1536 (Float32)</span></div>
-            <div className="flex justify-between"><span>Indexing:</span><span className="text-neutral-300">HNSW Flat</span></div>
-          </div>
-        </div>
+        {/* Results Section */}
+        <motion.div
+          className="space-y-4"
+          initial="hidden"
+          animate="show"
+          variants={{ show: { transition: { staggerChildren: 0.1 } } }}
+        >
+          {results.map((result, idx) => (
+            <motion.div
+              key={idx}
+              variants={itemVariants}
+              className="p-6 rounded-2xl bg-neutral-900 border border-white/5 space-y-4 hover:border-purple-500/30 transition-all"
+            >
+              <div className="flex justify-between items-start">
+                <h3 className="text-lg font-semibold">{result.title}</h3>
 
-        {/* Column 2 & 3: Execution Terminal and Core Display */}
-        <div className="lg:col-span-2 space-y-6">
-          <form onSubmit={executeRanking} className="relative w-full group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-neutral-800 to-neutral-700 rounded-2xl blur opacity-10" />
-            <div className="relative backdrop-blur-xl bg-neutral-900/40 border border-white/10 rounded-2xl p-2 flex items-center gap-3 shadow-xl">
-              <Search className="w-5 h-5 text-neutral-500 ml-3 flex-shrink-0" />
-              <input
-                type="number"
-                placeholder="Enter query token cluster ID..."
-                className="bg-transparent border-none outline-none flex-1 text-white placeholder:text-neutral-600 py-2.5 text-base"
-                value={queryId}
-                onChange={(e) => setQueryId(e.target.value)}
-                disabled={isLoading}
-              />
-              <button type="submit" disabled={isLoading || !queryId.trim()} className="bg-white text-black px-6 py-2.5 rounded-xl font-medium hover:bg-neutral-200 transition-all active:scale-95 text-sm disabled:opacity-40 flex items-center justify-center min-w-[90px]">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Compute"}
-              </button>
-            </div>
-          </form>
+                {/* Telemetry Badges */}
+                <div className="flex gap-2">
+                  <span className="text-xs font-mono bg-blue-500/10 text-blue-400 px-2 py-1 rounded border border-blue-500/20">
+                    Conf: {(result.confidence_score * 100).toFixed(1)}%
+                  </span>
+                  <span className="text-xs font-mono bg-green-500/10 text-green-400 px-2 py-1 rounded border border-green-500/20">
+                    {result.latency_ms}ms
+                  </span>
+                </div>
+              </div>
 
-          {/* Results Output Screen */}
-          <div className="min-h-[300px]">
-            <AnimatePresence mode="wait">
-              {error && (
-                <motion.div key="err" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 rounded-xl border border-red-500/10 bg-red-500/5 text-red-400 text-xs flex gap-3">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <div><span className="font-semibold block mb-0.5">Pipeline Interrupted</span>{error}</div>
-                </motion.div>
-              )}
+              <p className="text-sm text-neutral-400">{result.description}</p>
 
-              {!isLoading && !error && processedResults.length === 0 && (
-                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 text-neutral-600 border border-dashed border-white/5 rounded-2xl flex flex-col items-center gap-2">
-                  <BarChart3 className="w-6 h-6 opacity-30" />
-                  <p className="text-xs font-mono">Awaiting target coordinate array execution</p>
-                </motion.div>
-              )}
-
-              {!isLoading && processedResults.length > 0 && (
-                <motion.div key="results" initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.05 } } }} className="space-y-2.5">
-                  <div className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest px-1 flex justify-between">
-                    <span>Computed Alignments</span>
-                    <span className="text-neutral-400 text-right">{metric === "euclidean" ? "Mode: L2 Distance (Lower is closer)" : "Mode: Cosine Similarity"}</span>
+              {/* Agentic Reasoning Block */}
+              {result.agentic_reasoning && (
+                <div className="mt-4 p-4 rounded-xl bg-purple-900/10 border border-purple-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                    <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Gemini Interrogation</span>
                   </div>
-                  {processedResults.map((item, idx) => (
-                    <motion.div key={item.candidate} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="relative border border-white/5 bg-neutral-900/10 rounded-xl p-4 flex items-center justify-between overflow-hidden">
-                      <div className="absolute left-0 top-0 bottom-0 bg-white/[0.01]" style={{ width: `${Math.min(100, item.relevance * 100)}%` }} />
-                      <div className="flex items-center gap-3 z-10">
-                        <span className="text-[10px] font-mono text-neutral-600 bg-neutral-950 px-2 py-0.5 rounded border border-white/5">0{idx + 1}</span>
-                        <span className="text-sm font-medium capitalize tracking-wide">{item.candidate}</span>
-                      </div>
-                      <div className="flex items-center gap-3 z-10 font-mono">
-                        <div className="w-16 bg-neutral-900 h-1 rounded-full overflow-hidden hidden sm:block">
-                          <div className="bg-neutral-500 h-full rounded-full" style={{ width: `${Math.min(100, item.relevance * 100)}%` }} />
-                        </div>
-                        <span className="text-xs font-semibold text-neutral-400">{item.relevance.toFixed(5)}</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
+                  <p className="text-sm text-neutral-300 leading-relaxed">
+                    {result.agentic_reasoning}
+                  </p>
+                </div>
               )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Column 4: Real-time Telemetry Monitor */}
-        <div className="backdrop-blur-xl bg-neutral-900/20 border border-white/5 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 font-mono">
-            <Activity className="w-4 h-4 text-neutral-500" /> Pipeline Telemetry
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 font-mono">
-            <div className="bg-neutral-950/60 p-3 rounded-xl border border-white/5">
-              <div className="text-[10px] text-neutral-500 flex items-center gap-1.5"><Cpu className="w-3 h-3" /> API Latency</div>
-              <div className="text-lg font-medium text-white mt-1">{isLoading ? "Computing..." : latency}</div>
-            </div>
-
-            <div className="bg-neutral-950/60 p-3 rounded-xl border border-white/5">
-              <div className="text-[10px] text-neutral-500 flex items-center gap-1.5"><Layers className="w-3 h-3" /> Core Node Load</div>
-              <div className="text-lg font-medium text-white mt-1">{processedResults.length > 0 ? "0.024 Msec" : "Idle"}</div>
-            </div>
-          </div>
-
-          <div className="text-[10px] text-neutral-600 font-mono bg-neutral-950 p-2.5 rounded-lg border border-white/5">
-            ⚡ Memory Pool: <span className="text-neutral-400 font-medium">Stable</span> <br />
-            ⚡ CORS Origin: <span className="text-neutral-400 font-medium">Authorized</span>
-          </div>
-        </div>
-
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
     </main>
   );
